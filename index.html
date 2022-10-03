@@ -42,7 +42,7 @@ d3.csv("airports.csv")
 
     const color = d3.scaleOrdinal()
     .domain(data.map(d => d.homecontinent))
-    .range(["#2abcbe","#F4F884","#E5A311","#67F74A","#EE5553","#3783c8" ,"#802930" ]);
+    .range(["#2abcbe","#F4F884","#E5A311","#67F74A","#ad3b4e","#3783c8" ,"#802930" ]);
 
   // Add a scale for bubble size
   const valueExtent = d3.extent(data, d => +d.n)
