@@ -1,194 +1,98 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
-    <script src="https://d3js.org/d3.v4.min.js"></script>
-    <title style="text-align: right">Oscar Winner Ages</title>
-    <style>
-      body {
-        margin: 0px;
-      }
-      .domain {
-        display: none;
-      }
-      .tick line {
-        stroke: #c0c0bb;
-      }
-      .tick text {
-        fill: #8e8883;
-        font-size: 10pt;
-        font-family: sans-serif;
-      }
-      .axis-label {
-        fill: #150a04;
-        font-size: 14pt;
-        font-family: sans-serif;
-      }
-    </style>
+<head>
+    <meta charset="utf-8">
 
-    <header style="font-size: 15pt; color: #42403f; text-align: center">
-      Hypothesis: Best Actor Winners Are On Average Older Than Best Actress
-      winners
-    </header>
-    <header style="font-size: 15pt; color: #42403f; text-align: center">
-      Data source: https://people.sc.fsu.edu/~jburkardt/data/csv/csv.html
-    </header>
-  </head>
-  <body>
-    <svg width="800" height="500"></svg>
+<!-- Load d3.js -->
+<script src="https://d3js.org/d3.v6.js"></script>
+
+<!-- Create an element where the map will take place -->
+<svg id="my_dataviz" width="900" height="500"></svg>
+<h1>Hypothesis: Airports are more common near the coast then the inland on every continent.</h1>
+
+
+</head>
+<style>
+
+</style>
+<body>
     <script>
-      const xValue = (d) => d.Year;
-      const xLabel = "Year Oscar Was Won";
-      const yValue = (d) => d.MaleAge;
-      const yValue2 = (d) => d.FemaleAge;
-      const yLabel = "Age (In Years)";
-      const margin = { left: 120, right: 30, top: 20, bottom: 140 };
+        // The svg
+const svg = d3.select("svg"),
+    width = +svg.attr("width"),
+    height = +svg.attr("height");
 
-      const svg = d3.select("svg");
-      const width = svg.attr("width");
-      const height = svg.attr("height");
-      const innerWidth = width - margin.left - margin.right;
-      const innerHeight = height - margin.top - margin.bottom + 20;
+// Map and projection
+const projection = d3.geoMercator()
+    .center([0,20])                // GPS of location to zoom on
+    .scale(99)                       // This is like the zoom
+    .translate([ width/2, height/2 ])
 
-      const g = svg
-        .append("g")
-        .attr("transform", `translate(${margin.left},${margin.top})`);
-      const xAxisG = g
-        .append("g")
-        .attr("transform", `translate(0, ${innerHeight})`);
-      const yAxisG = g.append("g");
+Promise.all([
+d3.json("https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson"),
+d3.csv("airports.csv")
+]).then(function (initialize) {
 
-      const tAxisG = g
-        .append("g")
-        .attr("transform", `translate(0, ${innerHeight})`);
-      xAxisG
-        .append("text")
-        .attr("class", "axis-label")
-        .attr("x", innerWidth / 2)
-        .attr("y", 80)
-        .text(xLabel);
+    let dataGeo = initialize[0]
+    let data = initialize[1]
 
-      yAxisG
-        .append("text")
-        .attr("class", "axis-label")
-        .attr("x", -innerHeight / 2)
-        .attr("y", -60)
-        .attr("transform", `rotate(-90)`)
-        .style("text-anchor", "middle")
-        .text(yLabel);
+  // Create a color scale
+  // const color = d3.scaleOrdinal()
+  //   .domain(data.map(d => d.homecontinent))
+  //   .range(d3.schemePaired);
 
-      let xScale = d3.scaleTime()
+    const color = d3.scaleOrdinal()
+    .domain(data.map(d => d.homecontinent))
+    .range(["#2abcbe","#F4F884","#E5A311","#67F74A","#EE5553","#3783c8" ,"#802930" ]);
 
-      let yScale = d3.scaleLinear().domain([22, 90]).range([0, width]);
+  // Add a scale for bubble size
+  const valueExtent = d3.extent(data, d => +d.n)
+  const size = d3.scaleSqrt()
+    .domain(valueExtent)  // What's in the data
+    .range([ .4, .4])  // Size in pixel
 
-      const xAxis = d3
-        .axisBottom()
-        .scale(xScale)
-        .tickPadding(15)
-        .ticks(4)
-        .tickSize(-innerHeight);
+  // Draw the map
+  svg.append("g")
+      .selectAll("path")
+      .data(dataGeo.features)
+      .join("path")
+        .attr("fill", "#4d4737")
+        .attr("d", d3.geoPath()
+            .projection(projection)
+        )
+      .style("stroke", "none")
+      .style("opacity", .8)
 
-      const yAxis = d3
-        .axisLeft()
-        .scale(yScale)
-        .ticks(5)
-        .tickPadding(15)
-        .tickSize(-innerWidth);
+  // Add circles:
+  svg
+    .selectAll("myCircles")
+    .data(data.sort((a,b) => +b.n - +a.n).filter((d,i) => i<73000))
+    .join("circle")
+      .attr("cx", d => projection([+d.homelon, +d.homelat])[0])
+      .attr("cy", d => projection([+d.homelon, +d.homelat])[1])
+      .attr("r", d => size(1))
+      .style("fill", d => color(d.homecontinent))
+      .attr("stroke", d=> {if (d.n>10) {return "black"} else {return "none"}  })
+      .attr("stroke-width", 1)
+      .attr("fill-opacity", .7)
 
-      const row = (d) => {
-        d.Year = new Date(d.Year);
-        d.MaleAge = +d.MaleAge;
-        d.FemaleAge = +d.FemaleAge;
-        return d;
-      };
-      d3.csv("Oscars.csv", row, (data) => {
-        var allGroup = ["MaleAge", "FemaleAge"];
-        var dataReady = allGroup.map(function (grpName) {
-          // .map allows to do something for each element of the list
-          return {
-            name: grpName,
-            values: data.map(function (d) {
-              return { time: d.time, value: +d[grpName] };
-            }),
-          };
-        });
 
-        //
-        // xScale.domain([2016, 1928]).range([innerWidth, 0]).nice();
-        //xScale.domain([, 2022]).range([0, innerWidth]).nice();
 
-        xScale.domain(d3.extent(data, xValue))
-          .range([0, innerWidth])
-          .nice();
+  // Add title and explanation
+  svg
+    .append("text")
+      .attr("text-anchor", "end")
+      .style("fill", "black")
+      .attr("x", width - 10)
+      .attr("y", height - 30)
+      .attr("width", 90)
+      .html("Airports of the World")
+      .style("font-size", 14)
 
-        yScale.domain([0, 80]).range([innerHeight, 0]).nice();
+})
 
-        var parseTime = d3.timeParse("%Y");
+</script>
 
-        // var dates = [];
-        // for (let data of Year) {
-        //   dates.push(parseTime(d.Year));
-        // }
 
-        // Draw Male data
-        g.selectAll("circle")
-          .data(data)
-          .enter()
-          .append("circle")
-          .attr("cx", (d) => xScale(d.Year))
-          .attr("cy", (d) => yScale(d.MaleAge))
-          .attr("fill-opacity", 0.7)
-          .attr("r", 4)
-          .style("fill", "#00adee");
 
-        // Draw female data
-        g.selectAll("myPoints")
-          .data(data)
-          .enter()
-          .append("circle")
-          .attr("cx", (d) => xScale(d.Year))
-          .attr("cy", (d) => yScale(d.FemaleAge))
-          .attr("fill-opacity", 0.7)
-          .attr("r", 4)
-          .style("fill", "#DF2F2F");
-
-        xAxisG.call(xAxis);
-        yAxisG.call(yAxis);
-
-        // Handmade legend
-        svg
-          .append("circle")
-          .attr("cx", innerWidth / 5 + 10)
-          .attr("cy", 35)
-          .attr("r", 4)
-          .style("fill", "#00adee");
-        svg
-          .append("circle")
-          .attr("cx", innerWidth / 5 + 10)
-          .attr("cy", 65)
-          .attr("r", 4)
-          .style("fill", "#DF2F2F");
-        svg
-          .append("text")
-          .attr("x", innerWidth / 5 + 16)
-          .attr("y", 35)
-          .text("Best Actor Ages")
-          .style("font-size", "8pt")
-          .attr("alignment-baseline", "top");
-        svg
-          .append("text")
-          .attr("x", innerWidth / 5 + 16)
-          .attr("y", 65)
-          .text("Best Actress Ages")
-          .style("font-size", "8pt")
-          .attr("alignment-baseline", "top");
-      });
-    </script>
-
-    <padding></padding>
-    <padding></padding>
-  <img src="BarGraph.png" alt="">
-    <img />
-  </body>
-</html>
+    
+</body>
