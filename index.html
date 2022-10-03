@@ -48,7 +48,7 @@ d3.csv("airports.csv")
   const valueExtent = d3.extent(data, d => +d.n)
   const size = d3.scaleSqrt()
     .domain(valueExtent)  // What's in the data
-    .range([ .4, .4])  // Size in pixel
+    .range([ .3, .3])  // Size in pixel
 
   // Draw the map
   svg.append("g")
